@@ -127,12 +127,11 @@ def main():
     global args
     args = parser.parse_args()
 
+    if not os.path.exists(args.dump_path):
+        os.makedirs(args.dump_path, exist_ok=True)
+
     init_distributed_mode(args)
     fix_random_seeds(args.seed)
-    if args.rank == 0: # only the first GPU saves checkpoint
-        if not os.path.exists(args.dump_path):
-            os.makedirs(args.dump_path, exist_ok=True)
-
     logger, training_stats = initialize_exp(args, "epoch", "loss")
 
     if args.rank !=0 :
