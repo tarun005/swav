@@ -117,7 +117,7 @@ parser.add_argument("--use_fp16", type=bool_flag, default=False,
 parser.add_argument("--sync_bn", type=str, default="pytorch", help="synchronize bn")
 parser.add_argument("--syncbn_process_group_size", type=int, default=8, help=""" see
                     https://github.com/NVIDIA/apex/blob/master/apex/parallel/__init__.py#L58-L67""")
-parser.add_argument("--output_dir", type=str, default=".",
+parser.add_argument("--dump_path", type=str, default=".",
                     help="experiment dump path for checkpoints and log")
 parser.add_argument("--seed", type=int, default=31, help="seed")
 parser.add_argument('--subset_size', type=int, default=1000000)
@@ -126,20 +126,19 @@ parser.add_argument('--subset_size', type=int, default=1000000)
 def main():
     global args
     args = parser.parse_args()
-    args.dump_path = args.output_dir
 
     init_distributed_mode(args)
     fix_random_seeds(args.seed)
+    if args.rank == 0: # only the first GPU saves checkpoint
+        if not os.path.exists(args.dump_path):
+            os.makedirs(args.dump_path, exist_ok=True)
+
     logger, training_stats = initialize_exp(args, "epoch", "loss")
 
     if args.rank !=0 :
         def print_pass(*args, **kwargs):
             pass
         builtins.print = print_pass
-
-    if args.rank == 0: # only the first GPU saves checkpoint
-        if not os.path.exists(args.output_dir):
-            os.makedirs(args.output_dir, exist_ok=True)
 
     # build data
     train_dataset = MultiCropDataset(
