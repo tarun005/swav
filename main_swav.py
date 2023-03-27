@@ -11,6 +11,7 @@ import shutil
 import time
 from logging import getLogger
 
+import builtins
 import numpy as np
 import torch
 import torch.nn as nn
@@ -29,6 +30,7 @@ from src.utils import (
     fix_random_seeds,
     AverageMeter,
     init_distributed_mode,
+    select_indices
 )
 from src.multicropdataset import MultiCropDataset
 import src.resnet50 as resnet_models
@@ -106,7 +108,7 @@ parser.add_argument("--local_rank", default=0, type=int,
 parser.add_argument("--arch", default="resnet50", type=str, help="convnet architecture")
 parser.add_argument("--hidden_mlp", default=2048, type=int,
                     help="hidden layer dimension in projection head")
-parser.add_argument("--workers", default=10, type=int,
+parser.add_argument("--workers", default=4, type=int,
                     help="number of data loading workers")
 parser.add_argument("--checkpoint_freq", type=int, default=25,
                     help="Save the model periodically")
@@ -115,17 +117,29 @@ parser.add_argument("--use_fp16", type=bool_flag, default=False,
 parser.add_argument("--sync_bn", type=str, default="pytorch", help="synchronize bn")
 parser.add_argument("--syncbn_process_group_size", type=int, default=8, help=""" see
                     https://github.com/NVIDIA/apex/blob/master/apex/parallel/__init__.py#L58-L67""")
-parser.add_argument("--dump_path", type=str, default=".",
+parser.add_argument("--output_dir", type=str, default=".",
                     help="experiment dump path for checkpoints and log")
 parser.add_argument("--seed", type=int, default=31, help="seed")
+parser.add_argument('--subset_size', type=int, default=1000000)
 
 
 def main():
     global args
     args = parser.parse_args()
+    args.dump_path = args.output_dir
+
     init_distributed_mode(args)
     fix_random_seeds(args.seed)
     logger, training_stats = initialize_exp(args, "epoch", "loss")
+
+    if args.rank !=0 :
+        def print_pass(*args, **kwargs):
+            pass
+        builtins.print = print_pass
+
+    if args.rank == 0: # only the first GPU saves checkpoint
+        if not os.path.exists(args.output_dir):
+            os.makedirs(args.output_dir, exist_ok=True)
 
     # build data
     train_dataset = MultiCropDataset(
@@ -135,6 +149,8 @@ def main():
         args.min_scale_crops,
         args.max_scale_crops,
     )
+    if args.subset_size is not None:
+        train_dataset = torch.utils.data.Subset(train_dataset, select_indices(train_dataset, args.subset_size))
     sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
@@ -163,8 +179,8 @@ def main():
         model = apex.parallel.convert_syncbn_model(model, process_group=process_group)
     # copy model to GPU
     model = model.cuda()
-    if args.rank == 0:
-        logger.info(model)
+    # if args.rank == 0:
+    #     logger.info(model)
     logger.info("Building model done.")
 
     # build optimizer

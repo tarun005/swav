@@ -69,6 +69,30 @@ def init_distributed_mode(args):
     torch.cuda.set_device(args.gpu_to_work_on)
     return
 
+def select_indices(dataset, len_subset, mode="class_balanced"):
+    """
+    Return a subset of dataset by sampling a fraction of samples from each class.
+    The total # after sampling must match len_subset.
+    """
+
+    from collections import Counter
+
+    len_dataset = len(dataset)
+    keep_frac = len_subset/len_dataset
+
+    targets = dataset.targets
+    cls_num_list = Counter(targets)
+
+    select_idxs = []
+    for label_id , n_s in cls_num_list.items():
+        class_indices = np.where(np.array(targets) == label_id)[0]
+        np.random.shuffle(class_indices)
+        num_sample = int(n_s*keep_frac)
+        select_idx_label = class_indices[:int(num_sample)]
+        select_idxs.extend(select_idx_label.tolist())
+
+    return select_idxs
+
 
 def initialize_exp(params, *args, dump_params=True):
     """
