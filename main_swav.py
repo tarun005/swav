@@ -139,16 +139,42 @@ def main():
             pass
         builtins.print = print_pass
 
-    # build data
-    train_dataset = MultiCropDataset(
-        args.data_path,
+
+    # build data - ImageNet
+    train_dataset_imnet = MultiCropDataset(
+        "/longtail-ssl/Datasets/ImageNet",
         args.size_crops,
         args.nmb_crops,
         args.min_scale_crops,
         args.max_scale_crops,
     )
     if args.subset_size is not None:
-        train_dataset = torch.utils.data.Subset(train_dataset, select_indices(train_dataset, args.subset_size))
+        train_dataset_imnet = torch.utils.data.Subset(train_dataset_imnet, np.random.choice(len(train_dataset_imnet, args.subset_size//3)))
+
+    # build data - inat
+    train_dataset_inat = MultiCropDataset(
+        "/longtail-ssl/Datasets/iNat",
+        args.size_crops,
+        args.nmb_crops,
+        args.min_scale_crops,
+        args.max_scale_crops,
+    )
+    if args.subset_size is not None:
+        train_dataset_inat = torch.utils.data.Subset(train_dataset_inat, np.random.choice(len(train_dataset_inat, args.subset_size//3)))
+
+    # build data - places
+    train_dataset_places = MultiCropDataset(
+        "/longtail-ssl/Datasets/Places205",
+        args.size_crops,
+        args.nmb_crops,
+        args.min_scale_crops,
+        args.max_scale_crops,
+    )
+    if args.subset_size is not None:
+        train_dataset_places = torch.utils.data.Subset(train_dataset_places, np.random.choice(len(train_dataset_places, args.subset_size//3)))
+
+    train_dataset = torch.utils.data.ConcatDataset([train_dataset_imnet, train_dataset_inat, train_dataset_places])
+
     sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
