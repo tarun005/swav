@@ -149,7 +149,7 @@ def main():
         args.max_scale_crops,
     )
     if args.subset_size is not None:
-        train_dataset_imnet = torch.utils.data.Subset(train_dataset_imnet, np.random.choice(len(train_dataset_imnet, args.subset_size//3)))
+        train_dataset_imnet = torch.utils.data.Subset(train_dataset_imnet, np.random.choice(len(train_dataset_imnet), args.subset_size//3))
 
     # build data - inat
     train_dataset_inat = MultiCropDataset(
@@ -160,7 +160,7 @@ def main():
         args.max_scale_crops,
     )
     if args.subset_size is not None:
-        train_dataset_inat = torch.utils.data.Subset(train_dataset_inat, np.random.choice(len(train_dataset_inat, args.subset_size//3)))
+        train_dataset_inat = torch.utils.data.Subset(train_dataset_inat, np.random.choice(len(train_dataset_inat), args.subset_size//3))
 
     # build data - places
     train_dataset_places = MultiCropDataset(
@@ -171,7 +171,7 @@ def main():
         args.max_scale_crops,
     )
     if args.subset_size is not None:
-        train_dataset_places = torch.utils.data.Subset(train_dataset_places, np.random.choice(len(train_dataset_places, args.subset_size//3)))
+        train_dataset_places = torch.utils.data.Subset(train_dataset_places, np.random.choice(len(train_dataset_places), args.subset_size//3))
 
     train_dataset = torch.utils.data.ConcatDataset([train_dataset_imnet, train_dataset_inat, train_dataset_places])
 
